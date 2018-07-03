@@ -36,9 +36,12 @@ def normalizing_case (words) :
     words = [word.lower() for word in words]
     return words
 
+stop_words = set(stopwords.words('english'))
+
 def filter_out_stop_words(words):
     # filter out stop words
-    stop_words = set(stopwords.words('english'))
+    global stop_words
+    # A.O. stop_words = set(stopwords.words('english'))
     words = [w for w in words if not w in stop_words]
     return words
 
@@ -73,7 +76,16 @@ def extract_url_title (url):
         return []
 
 def parse_tweet (text, parse_url=False) :
+
+    reTweet = False
+    if (text.startswith('RT ') or text.startswith(' RT ')) :
+        reTweet = True
+        raise ValueError('Not RT')
+
     hashtags = extract_hashtags (text)
+    if (len(hashtags) == 0) :
+        raise ValueError('Not RT')
+
     urls = extract_urls(text)
 
     tweet_terms = extract_text_cleaned (text)
@@ -83,7 +95,14 @@ def parse_tweet (text, parse_url=False) :
         flat_list = [item for sublist in url_terms for item in sublist]
         url_terms = flat_list
 
-    return hashtags, urls, tweet_terms, url_terms
+
+    if (len(urls) == 0) : urls = None
+    if (len(hashtags) == 0): hashtags = None
+    if (len(tweet_terms) == 0): tweet_terms = None
+    if (len(url_terms) == 0): url_terms = None
+
+
+    return hashtags, urls, tweet_terms, url_terms, reTweet
 
 
 

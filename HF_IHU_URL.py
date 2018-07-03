@@ -23,6 +23,7 @@ class HF_IHU_URL(BaseEstimator):
             for ht in hashtags:
                 self.thfm[t][ht]+=1
 
+
     def predict(self, terms, p):
         sh = defaultdict(int)
         for t in terms:
@@ -36,6 +37,9 @@ class HF_IHU_URL(BaseEstimator):
                 ihuh = log (self.corpus_size/self.hfm[ht])
                 sh[ht]+=hfthj*ihuh
 
-        return {key: sh[key] for key in sorted(sh, key=sh.get, reverse=True)[:p]}
+        a = {key: sh[key] for key in sorted(sh, key=sh.get, reverse=True)[:p]}
+        b = a.keys()
+        return b
+        #return {key: sh[key] for key in sorted(sh, key=sh.get, reverse=True)[:p]}
 
 
