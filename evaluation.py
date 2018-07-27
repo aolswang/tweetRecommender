@@ -2,14 +2,24 @@ from HF_IHU_URL import *
 from extractors import *
 import pandas as pd
 import numpy as np
+import math
+import statistics
 import cProfile
 
+###################################################################################
+# evaluation.py file
+# This file reads the rae tweets file analyzes each tweet and  creates the 4 extracted files
+###################################################################################
+
+
 global_id =0
+global_rawTweets = "data//nonRTwithHT1.txt"
 
 
-
-
-
+###################################################################################
+# check if this tweet is an original tweet (no retweets) and that it has hashtags
+# return True - if this is not a RT and has hashtags otherwise False
+###################################################################################
 def checkForRTandHashtags(line):
     currentline = line.split(",;,")
     if (len(currentline) < 3):
@@ -24,8 +34,11 @@ def checkForRTandHashtags(line):
         return False
 
     return True
-
+###################################################################################
+# function: cretateNonRTwithHashFile
 # this is used to create the nonRTwithHT file
+# return none
+###################################################################################
 def cretateNonRTwithHashFile ():
 
     temp_Counter = 0
@@ -53,12 +66,20 @@ def cretateNonRTwithHashFile ():
         file.close()
     writeFile.close()
 
-
-def parse_tweet_file (fname, maxlines=1000, rows_to_save=100):
-    user_df = pd.DataFrame()
+###################################################################################
+# fuction: parse_tweet_file
+# this function reads the tweet file and creates 4 files:
+# 1.hashtags of each tweet
+# 2.terms of each tweet
+# 3.terms extracted from the uRL of each tweet
+# 4.some meta data on the tweet
+# return none
+###################################################################################
+def parse_tweet_file (fname, maxlines=1000000, rows_to_save=50):
     ht_df = pd.DataFrame()
     terms_df = pd.DataFrame()
     url_terms_df = pd.DataFrame()
+    meta_df = pd.DataFrame()
 
     line_counter = 0
     rows_counter = 0
@@ -88,6 +109,8 @@ def parse_tweet_file (fname, maxlines=1000, rows_to_save=100):
             ht_df = pd.concat([ht_df,h], ignore_index=True)
             terms_df = pd.concat([terms_df, pd.DataFrame([terms])], ignore_index=True)
             url_terms_df = pd.concat([url_terms_df, pd.DataFrame([url_terms])], ignore_index=True)
+            meta = np.array([tweet_to_extract[0],tweet_to_extract[1],retweets])
+            meta_df = pd.concat([meta_df,pd.DataFrame([meta])], ignore_index=True)
 
             rows_counter+=1
             if ((rows_counter % 2) == 0):
@@ -98,7 +121,9 @@ def parse_tweet_file (fname, maxlines=1000, rows_to_save=100):
                 ht_df.to_csv ("hashtags.csv")
                 terms_df.to_csv ("terms.csv")
                 url_terms_df.to_csv ("urlterms.csv")
+                meta_df.to_csv("meta.csv")
         except Exception as error:
+            print(error)
             error = None
 
         line = file.readline()
@@ -106,10 +131,16 @@ def parse_tweet_file (fname, maxlines=1000, rows_to_save=100):
     ht_df.to_csv("hashtags.csv")
     terms_df.to_csv("terms.csv")
     url_terms_df.to_csv("urlterms.csv")
+    meta_df.to_csv("meta.csv")
 
+###################################################################################
+# fuction: print_statistics
+# this function prints the statistic analisys of the tweets
+# return: none
+###################################################################################
 
-def print_data_np_statistics (data) :
-    size = len(data)
+def print_statistics (meta_df,hashtags_df, terms_df,urlTerms_df) :
+    size = len(meta_df)
     numberOfOriginalTweets = 0
     numberOfTerms = 0
     numberOfURLTerms = 0
@@ -124,6 +155,7 @@ def print_data_np_statistics (data) :
     numberOfNonRTHashtags = 0
     tweetsNonRTWithURL = 0
     tweetsNonRTWithHashtag = 0
+    maxHashtagsPerTweet =0
 
     hashtagIndex = 2
     urlIndex = 3
@@ -131,58 +163,120 @@ def print_data_np_statistics (data) :
     urlTermIndex = 5
     retweetIndex = 6
 
-    columns = ['date', 'user', 'hashtags', 'urls', 'terms', 'url_terms','retweet']
+    urlTerms = []
+    terms = []
+    hashtags = []
+    hashtag_dict = {}
 
-    for i in range(1,size) :
-        if data[i,termsIndex] != None : numberOfTerms += len(data[i,termsIndex])
-        if data[i, urlTermIndex] != None: numberOfURLTerms += len(data[i, urlTermIndex])
-        if data[i, hashtagIndex] != None: numberOfHashtags += len(data[i, hashtagIndex])
-        if data[i, urlIndex] != None: tweetsWithURL += 1
-        if data[i, hashtagIndex] != None: tweetsWithHashtag += 1
-        if data[i, retweetIndex] == True: RTTweets += 1
 
-        if (data[i, retweetIndex] == False):
-            numberOfOriginalTweets +=1
-            if data[i,termsIndex] != None : numberOfNonRTTerms += len(data[i,termsIndex])
-            if data[i, urlTermIndex] != None: numberOfNonRTURLTerms += len(data[i, urlTermIndex])
-            if data[i, hashtagIndex] != None: numberOfNonRTHashtags += len(data[i, hashtagIndex])
-            if data[i, urlIndex] != None: tweetsNonRTWithURL += 1
-            if data[i, hashtagIndex] != None: tweetsNonRTWithHashtag += 1
+    for index, row in urlTerms_df.iterrows():
+        temp_urlTerms = row.dropna()[1:]
+        if ( len(temp_urlTerms) > 0 ):
+            tweetsWithURL +=1
+            numberOfURLTerms += len(temp_urlTerms)
+            urlTerms += temp_urlTerms.values.flatten().tolist()
 
+    for index, row in terms_df.iterrows():
+        tempTerms = row.dropna()[1:]
+        numberOfTerms += len(tempTerms)
+        terms += tempTerms.values.flatten().tolist()
+
+    overallHashtagFrequencyArray = np.zeros(50)
+    urlHashtagFrequencyArray = np.zeros(50)
+    nonurlHashtagFrequencyArray = np.zeros(50)
+
+    for index, row in hashtags_df.iterrows():
+        tempHashtags = row.dropna()[1:]
+        tempHashtags = tempHashtags.values.flatten().tolist()
+        length = len(tempHashtags)
+        overallHashtagFrequencyArray[length]+=1
+        if isinstance(urlTerms_df.iloc[index,1],str):
+            urlHashtagFrequencyArray[length]+=1
+        else:
+            nonurlHashtagFrequencyArray[length]+=1
+        numberOfHashtags += length
+        if maxHashtagsPerTweet < length : maxHashtagsPerTweet =  length
+        hashtags += tempHashtags
+        for tag in tempHashtags :
+            if ( tag in hashtag_dict ):
+                hashtag_dict [tag] += 1
+            else:
+                hashtag_dict[tag] = 1
+
+    print('overallHashtagFrequencyArray\n',overallHashtagFrequencyArray)
+    print('urlHashtagFrequencyArray\n', urlHashtagFrequencyArray)
+    print('nonurlHashtagFrequencyArray\n', nonurlHashtagFrequencyArray)
 
     print(('overall Statistics \n' +
            '\tnumber of records - {0} \n' +
            '\ttweetsWithURL - {1} \n' +
-           '\ttweetsWithHashtag - {2} \n' +
-           '\tRTTweets - {3} \n' +
-           '\tnumberOfTerms - {4} \n' +
-           '\tnumberofURLTerms - {5} \n' +
-           '\tnumberofHashtags - {6}').format(size-1,tweetsWithURL,tweetsWithHashtag,RTTweets,numberOfTerms,numberOfURLTerms,numberOfHashtags))
+           '\tnumberOfTerms - {2} \n' +
+           '\tnumberofURLTerms - {3} \n' +
+           '\tnumberofHashtags - {4}').format(size-1,
+                                              tweetsWithURL,
+                                              numberOfTerms,
+                                              numberOfURLTerms,
+                                              numberOfHashtags))
 
+    df = pd.pivot_table(meta,index=['1'],aggfunc=np.count_nonzero)
 
-    print(('Statistics for original tweets (non RT) \n' +
-           '\tnumber of records - {0} \n' +
-           '\ttweetsWithURL - {1} \n' +
-           '\ttweetsWithHashtag - {2} \n' +
-           '\tnumberOfTerms - {3} \n' +
-           '\tnumberofURLTerms - {4} \n' +
-           '\tnumberofHashtags - {5}').format(numberOfOriginalTweets,tweetsNonRTWithURL,tweetsNonRTWithHashtag,numberOfNonRTTerms,numberofNonRTURLTerms,numberofNonRTHashtags))
+    print(('user statistics \n' +
+           '\t number of users - {0} \n' +
+           '\t avvrage tweets per user - {1}\n' +
+           '\t max number of tweets - {2}\n' +
+           '\t median number of tweets - {3}').format(len(df['0']),
+                                                      df['0'].mean(),
+                                                      df['0'].max(),
+                                                      df['0'].median()))
 
+    freshHashtags = sum(1 for i in hashtag_dict.values() if i == 1)
+    maxHashtagAperance = max(hashtag_dict.values())
+    #medianHashtagApearance = np.median(hashtag_dict.values())
 
-def buildNPData() :
+    print(('hashtag statistics \n' +
+           '\t numberofHashtags - {0} \n' +
+           '\t number of unique hashtags - {1} \n' +
+           '\t avvrage hashtag per tweet - {2}\n' +
+           '\t max hashtag per tweet  - {3}\n' +
+           '\t median hashtag per tweet - {4}\n' +
+           '\t Average hashtag apearance - {5}\n' +
+           '\t max hashtag apearance - {6}\n' +
+           '\t median hashtag apearance - {7}\n' +
+           '\t freshHashtags - {8}').format(numberOfHashtags,
+                                            len(hashtag_dict),
+                                            numberOfHashtags / size,
+                                            maxHashtagsPerTweet,
+                                            np.NaN,
+                                            np.NaN,
+                                            maxHashtagAperance,
+                                            np.NaN,
+                                            freshHashtags))
 
-    myNP = cretate_numpy()
-    print_data_np_statistics(myNP)
-    '''
-    #trying to dump np to file
+###################################################################################
+# fuction: loadDataFrames
+# loads the 4 files into dataframes
+# return - the 4 dataframes
+###################################################################################
 
-    np.save('np.csv',myNP)
-    with open('np.csv') as f:
-        foo = f.readlines()
-    myNP = np.load(foo)
-    print_data_np_statistics(myNP)
-    '''
+def loadDataFrames():
+    meta= pd.read_csv('data\\meta.csv')#,nrows=100)
+    hashtags = pd.read_csv('data\\hashtags.csv')#,nrows=100)
+    terms = pd.read_csv('data\\terms.csv')#,nrows=100)
+    urlterms = pd.read_csv('data\\urlterms.csv')#,nrows=100)
+
+    return meta,hashtags,terms,urlterms
+
+###################################################################################
+# fuction: loadDataFrames
+#
+###################################################################################
 
 if __name__ == "__main__":
-    parse_tweet_file("data/nonRTwithHT1.txt")
+
+    parse_tweet_file(global_rawTweets)
+
+    meta, hashtags, tweetTerms, urlTerms = loadDataFrames()
+
+    print_statistics(meta, hashtags, tweetTerms, urlTerms)
+
     model = HF_IHU_URL()
