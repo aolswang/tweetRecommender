@@ -5,6 +5,10 @@ from time import time
 from math import log
 
 class HF_IHU_URL(BaseEstimator):
+    """This class implements the HF_IHU_URL model as described in Twitter Hashtag Recommendation System Using URL Information.
+ It supports the following methods:
+ 1. fit - fit the model
+ 2. predict - ask the model to recommend you an hashtag"""
 
     def __init__(self) :
         self.hfm = defaultdict(int)
@@ -39,6 +43,7 @@ class HF_IHU_URL(BaseEstimator):
 
         a = {key: sh[key] for key in sorted(sh, key=sh.get, reverse=True)[:p]}
         b = a.keys()
+        b = list(b)
         return b
         #return {key: sh[key] for key in sorted(sh, key=sh.get, reverse=True)[:p]}
 
