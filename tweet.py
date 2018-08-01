@@ -9,10 +9,10 @@ from time import sleep, time
 import json
 import codecs
 
-CONSUMER_KEY = "7ltX8F0vUn30aHWytulVoot5S"
-CONSUMER_SECRET = "cmTfSV81rwp6jWBoWOAHCyWoa95AYg22OYfSMrcuoWW8a4LF2d"
-OAUTH_TOKEN = "90821027-4ET1pv1QdYS97jE9kXe2hz8zvlMclZcHgXqW4cg84"
-OAUTH_TOKEN_SECRET = "qYu4urGMBywUNrOKnVCX1sTRozP7HlIQn3owKwx6g0a1a"
+CONSUMER_KEY = "SECRET - Ask Amir"
+CONSUMER_SECRET = "SECRET - Ask Amir"
+OAUTH_TOKEN = "SECRET - Ask Amir"
+OAUTH_TOKEN_SECRET = "SECRET - Ask Amir"
 
 counter = 0
 text_file = codecs.open("Output0.txt", "w" , "utf-8")
